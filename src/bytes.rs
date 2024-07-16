@@ -17,23 +17,18 @@ use crate::loom::sync::atomic::AtomicMut;
 use crate::loom::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 use crate::{offset_from, Buf, BytesMut};
 
-/// A cheaply cloneable and sliceable chunk of contiguous memory.
+/// 一个低廉的可克隆和可切片的连续内存块。
 ///
-/// `Bytes` is an efficient container for storing and operating on contiguous
-/// slices of memory. It is intended for use primarily in networking code, but
-/// could have applications elsewhere as well.
+/// `Bytes` 是一个高效的用于存储和操作连续内存片段的容器。
+/// 它主要用于网络编程，但也可能在其他地方有用。
 ///
-/// `Bytes` values facilitate zero-copy network programming by allowing multiple
-/// `Bytes` objects to point to the same underlying memory.
+/// `Bytes` 通过允许多个 `Bytes` 对象指向相同的底层内存来实现零拷贝网络编程。
 ///
-/// `Bytes` does not have a single implementation. It is an interface, whose
-/// exact behavior is implemented through dynamic dispatch in several underlying
-/// implementations of `Bytes`.
+/// `Bytes` 没有单一的实现。它是一个接口, 其具体行为由动态派发的多个底层实现的 `Bytes` 实现提供。
 ///
-/// All `Bytes` implementations must fulfill the following requirements:
-/// - They are cheaply cloneable and thereby shareable between an unlimited amount
-///   of components, for example by modifying a reference count.
-/// - Instances can be sliced to refer to a subset of the original buffer.
+/// 所有的`Bytes`视线必须满足以下全部要求:
+/// - 它们是廉价的克隆和可共享的，可以无限量的组件共享，例如通过修改引用计数。
+/// - 实例可以被切片以引用原始buffer的子集。
 ///
 /// ```
 /// use bytes::Bytes;
@@ -51,37 +46,24 @@ use crate::{offset_from, Buf, BytesMut};
 ///
 /// # Memory layout
 ///
-/// The `Bytes` struct itself is fairly small, limited to 4 `usize` fields used
-/// to track information about which segment of the underlying memory the
-/// `Bytes` handle has access to.
+/// `Bytes`结构本身是非常小的, 限制在4个`usize`字段中, 这些字段用于跟踪`Bytes`句柄所指向的底层内存片段可访问的信息,
 ///
-/// `Bytes` keeps both a pointer to the shared state containing the full memory
-/// slice and a pointer to the start of the region visible by the handle.
-/// `Bytes` also tracks the length of its view into the memory.
+/// `Bytes` 同时保存了两个指针, 一个指向包含了完整内存切片的共享状态, 另一个指向可见区域的开始位置。
+/// `Bytes` 也会track这块内存的长度.
 ///
 /// # Sharing
 ///
-/// `Bytes` contains a vtable, which allows implementations of `Bytes` to define
-/// how sharing/cloning is implemented in detail.
-/// When `Bytes::clone()` is called, `Bytes` will call the vtable function for
-/// cloning the backing storage in order to share it behind multiple `Bytes`
-/// instances.
+/// `Bytes` 包含一个 vtable, 这使得实现 `Bytes` 的方式可以详细定义共享/克隆的实现。
+/// 当 `Bytes::clone()` 被调用时, `Bytes` 会调用 vtable 函数来克隆底层存储, 以便在多个`Bytes`实例后共享它
 ///
-/// For `Bytes` implementations which refer to constant memory (e.g. created
-/// via `Bytes::from_static()`) the cloning implementation will be a no-op.
+/// 对于引用常量内存的 Bytes 实现（例如通过 Bytes::from_static() 创建），克隆实现将是无操作。
 ///
-/// For `Bytes` implementations which point to a reference counted shared storage
-/// (e.g. an `Arc<[u8]>`), sharing will be implemented by increasing the
-/// reference count.
+/// 对于指向了引用计数的共享存储的 `Bytes` 实现（例如通过 `Arc<[u8]>` 创建），克隆实现将是增加引用计数。
 ///
-/// Due to this mechanism, multiple `Bytes` instances may point to the same
-/// shared memory region.
-/// Each `Bytes` instance can point to different sections within that
-/// memory region, and `Bytes` instances may or may not have overlapping views
-/// into the memory.
+/// 由于这个原理,多个`Bytes`实例可能指向相同的共享存储区域.
+/// 每个`Bytes`实例可以指向内存区域的不同部分, 并且`Bytes`实例可能有也可能没有重叠的视图到内存区域。
 ///
-/// The following diagram visualizes a scenario where 2 `Bytes` instances make
-/// use of an `Arc`-based backing storage, and provide access to different views:
+/// 下面的框图说明了一个场景, 其中2个`Bytes`实例使用基于`Arc`的底层存储, 并提供对不同视图的访问:
 ///
 /// ```text
 ///
@@ -106,6 +88,7 @@ pub struct Bytes {
     vtable: &'static Vtable,
 }
 
+/// `Vtable` 拥有5个方法
 pub(crate) struct Vtable {
     /// fn(data, ptr, len)
     pub clone: unsafe fn(&AtomicPtr<()>, *const u8, usize) -> Bytes,
@@ -121,9 +104,9 @@ pub(crate) struct Vtable {
 }
 
 impl Bytes {
-    /// Creates a new empty `Bytes`.
+    /// 创建一个新的空的 `Bytes`.
     ///
-    /// This will not allocate and the returned `Bytes` handle will be empty.
+    /// 这并不会分配任何内存, 而是创建一个空的 `Bytes` 实例, 其长度为0.
     ///
     /// # Examples
     ///
@@ -148,10 +131,14 @@ impl Bytes {
         Bytes::from_static(EMPTY)
     }
 
-    /// Creates a new `Bytes` from a static slice.
+    /// 从一个静态的切片创建一个新的 `Bytes`.
     ///
-    /// The returned `Bytes` will point directly to the static slice. There is
-    /// no allocating or copying.
+    /// 所返回的`Bytes`将直接指向静态切片。没有分配或复制。
+    /// 并且从实现可知:
+    /// - `ptr` 是输入数据(切片)的地址
+    /// - `len` 是其长度
+    /// - `data` 则会是一个`AtomicPtr`,虽然暂时是空指针,但它是可变的
+    /// - `vtable` 则会引用一个提前准备好的静态的`STATIC_VTABLE`
     ///
     /// # Examples
     ///
@@ -182,7 +169,7 @@ impl Bytes {
         }
     }
 
-    /// Returns the number of bytes contained in this `Bytes`.
+    /// 返回`Bytes`实例所包含的bytes的字节数
     ///
     /// # Examples
     ///
@@ -212,14 +199,11 @@ impl Bytes {
         self.len == 0
     }
 
-    /// Returns true if this is the only reference to the data.
+    /// 如果该`Bytes`实例是指向的数据的唯一引用,则返回 true.
+    /// 不过,如果它指向的是一块静态切片,则永远返回 false.
     ///
-    /// Always returns false if the data is backed by a static slice.
-    ///
-    /// The result of this method may be invalidated immediately if another
-    /// thread clones this value while this is being called. Ensure you have
-    /// unique access to this value (`&mut Bytes`) first if you need to be
-    /// certain the result is valid (i.e. for safety reasons)
+    /// 该方法的结果可能是非法的,因为该方法并不是线程安全的,如果在调用此方法是恰好有其他
+    /// 线程在进行clone...所以为了真正的安全, 请确保你拥有对该值的独占访问权(即`&mut Bytes`)
     /// # Examples
     ///
     /// ```
@@ -234,17 +218,18 @@ impl Bytes {
         unsafe { (self.vtable.is_unique)(&self.data) }
     }
 
-    /// Creates `Bytes` instance from slice, by copying it.
+    /// 基于切片引用创建一个新的`Bytes`实例, 并复制其内容.
     pub fn copy_from_slice(data: &[u8]) -> Self {
         data.to_vec().into()
     }
 
-    /// Returns a slice of self for the provided range.
+    /// 返回一个基于提供的范围的切片
     ///
-    /// This will increment the reference count for the underlying memory and
-    /// return a new `Bytes` handle set to the slice.
+    /// 该操作会增加(底层内容的)引用计数, 并返回一个对于该切片的`Bytes` handle
     ///
-    /// This operation is `O(1)`.
+    /// 该操作的复杂度为 `O(1)`
+    ///
+    /// 通过该方法, 你将看到`ptr`成员的作用
     ///
     /// # Examples
     ///
@@ -258,9 +243,7 @@ impl Bytes {
     /// ```
     ///
     /// # Panics
-    ///
-    /// Requires that `begin <= end` and `end <= self.len()`, otherwise slicing
-    /// will panic.
+    /// 不可越界,否则切片行为将触发panic
     pub fn slice(&self, range: impl RangeBounds<usize>) -> Self {
         use core::ops::Bound;
 
@@ -303,14 +286,14 @@ impl Bytes {
         ret
     }
 
-    /// Returns a slice of self that is equivalent to the given `subset`.
+    /// 返回一个自身的切片,等价于给定的`subset`
     ///
-    /// When processing a `Bytes` buffer with other tools, one often gets a
-    /// `&[u8]` which is in fact a slice of the `Bytes`, i.e. a subset of it.
-    /// This function turns that `&[u8]` into another `Bytes`, as if one had
-    /// called `self.slice()` with the offsets that correspond to `subset`.
+    /// 当通过其他工具处理一个`Bytes` buffer时, 通常会得到一个`&[u8]`, 事实上是`Bytes`的切片,即`subset`
+    /// 该方法将把该`&[u8]`转换成另一个`Bytes`, 就好像它是通过`self.slice()`方法调用的,基于适当的offset得到这个`subset`
     ///
-    /// This operation is `O(1)`.
+    /// 实际上,该方法底层确实也调用了`slice()`, 但是它的原理是信赖提供的`subset`确实属于子集,并以此计算的offset
+    ///
+    /// 该操作的复杂度为 `O(1)`
     ///
     /// # Examples
     ///
@@ -326,11 +309,9 @@ impl Bytes {
     ///
     /// # Panics
     ///
-    /// Requires that the given `sub` slice is in fact contained within the
-    /// `Bytes` buffer; otherwise this function will panic.
+    /// 需要确保给定的 `sub` 切片确实属于 `Bytes` 缓冲区,否则该函数将会 panic.
     pub fn slice_ref(&self, subset: &[u8]) -> Self {
-        // Empty slice and empty Bytes may have their pointers reset
-        // so explicitly allow empty slice to be a subslice of any slice.
+        // 允许空的`subset`, 并将返回一个空的`Bytes`
         if subset.is_empty() {
             return Bytes::new();
         }
@@ -361,13 +342,11 @@ impl Bytes {
         self.slice(sub_offset..(sub_offset + sub_len))
     }
 
-    /// Splits the bytes into two at the given index.
+    /// 基于给定的index,将bytes分离成两份
+    /// 然后`self`将包含`[0, at)`, 而返回的`Bytes`将包含`[at, len)`
+    /// 如果你不想要剩余的部分,可以考虑 `truncate()`
     ///
-    /// Afterwards `self` contains elements `[0, at)`, and the returned `Bytes`
-    /// contains elements `[at, len)`.
-    ///
-    /// This is an `O(1)` operation that just increases the reference count and
-    /// sets a few indices.
+    /// 这是一个O1复杂度的操作, 它只是增加了引用计数和几个索引.
     ///
     /// # Examples
     ///
@@ -383,13 +362,15 @@ impl Bytes {
     ///
     /// # Panics
     ///
-    /// Panics if `at > len`.
+    /// 如果`at`大于`len`,则会触发panic
     #[must_use = "consider Bytes::truncate if you don't need the other half"]
     pub fn split_off(&mut self, at: usize) -> Self {
+        // 如果at等于len,则返回空的Bytes
         if at == self.len() {
             return Bytes::new();
         }
 
+        // 如果at等于0, 则使用空的`Bytes`替换掉`self`
         if at == 0 {
             return mem::replace(self, Bytes::new());
         }
@@ -410,13 +391,8 @@ impl Bytes {
         ret
     }
 
-    /// Splits the bytes into two at the given index.
-    ///
-    /// Afterwards `self` contains elements `[at, len)`, and the returned
-    /// `Bytes` contains elements `[0, at)`.
-    ///
-    /// This is an `O(1)` operation that just increases the reference count and
-    /// sets a few indices.
+    /// 类似于 [split_off](`Self::split_off()`)  , 但是`self`将包含 `[at, len)`, 而返回的`Bytes`将包含 `[0, at)`
+    /// 同样,如果你不想要剩余的部分,可以考虑 `advance()`
     ///
     /// # Examples
     ///
@@ -431,8 +407,7 @@ impl Bytes {
     /// ```
     ///
     /// # Panics
-    ///
-    /// Panics if `at > len`.
+    /// 如果`at`大于`len`,则会触发panic
     #[must_use = "consider Bytes::advance if you don't need the other half"]
     pub fn split_to(&mut self, at: usize) -> Self {
         if at == self.len() {
@@ -458,14 +433,10 @@ impl Bytes {
         ret
     }
 
-    /// Shortens the buffer, keeping the first `len` bytes and dropping the
-    /// rest.
+    /// 缩小缓冲区,只保留前`len`个字节,并丢弃其余字节.
+    /// 如果`len`大于缓冲区当前长度,则该操作无效.
     ///
-    /// If `len` is greater than the buffer's current length, this has no
-    /// effect.
-    ///
-    /// The [split_off](`Self::split_off()`) method can emulate `truncate`, but this causes the
-    /// excess bytes to be returned instead of dropped.
+    /// [split_off](`Self::split_off()`) 方法也能模拟该方法, 但是它将返回剩余的字节而不是丢弃它们.
     ///
     /// # Examples
     ///
@@ -479,9 +450,8 @@ impl Bytes {
     #[inline]
     pub fn truncate(&mut self, len: usize) {
         if len < self.len {
-            // The Vec "promotable" vtables do not store the capacity,
-            // so we cannot truncate while using this repr. We *have* to
-            // promote using `split_off` so the capacity can be stored.
+            // 如果该实例的`vtable` 引用的是 `PROMOTABLE_EVEN_VTABLE` 或 `PROMOTABLE_ODD_VTABLE`,
+            // 则必须通过 `split_off` 方法来实现截断, 否则直接修改 `len` 字段.
             if self.vtable as *const Vtable == &PROMOTABLE_EVEN_VTABLE
                 || self.vtable as *const Vtable == &PROMOTABLE_ODD_VTABLE
             {
@@ -492,7 +462,8 @@ impl Bytes {
         }
     }
 
-    /// Clears the buffer, removing all data.
+    /// 清空buffer,并移除所有数据
+    /// 本质是基于truncate方法
     ///
     /// # Examples
     ///

@@ -1,14 +1,12 @@
-//! Utilities for working with buffers.
+//! 提供了和buffer交互的工具.
 //!
-//! A buffer is any structure that contains a sequence of bytes. The bytes may
-//! or may not be stored in contiguous memory. This module contains traits used
-//! to abstract over buffers as well as utilities for working with buffer types.
+//! buffer是一个包含了一系列字节的结构. 这些字节可能存储在连续的内存中, 也可能不连续.
+//! 本模块提供了对buffer进行抽象,以及对buffer类型进行操作的traits和工具.
 //!
 //! # `Buf`, `BufMut`
 //!
-//! These are the two foundational traits for abstractly working with buffers.
-//! They can be thought as iterators for byte structures. They offer additional
-//! performance over `Iterator` by providing an API optimized for byte slices.
+//! 这是两个重要的traits, 用于抽象地处理buffer. 它们可以被视为字节结构的迭代器.
+//! 它们提供了在`Iterator`之上的性能, 因为提供了针对字节切片优化的API.
 //!
 //! See [`Buf`] and [`BufMut`] for more details.
 //!

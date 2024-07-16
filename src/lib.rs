@@ -7,26 +7,19 @@
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-//! Provides abstractions for working with bytes.
+//! 提供了对字节处理的抽象。
 //!
-//! The `bytes` crate provides an efficient byte buffer structure
-//! ([`Bytes`]) and traits for working with buffer
-//! implementations ([`Buf`], [`BufMut`]).
+//! `bytes` crate 提供了一个高效的字节缓冲区结构 [`Bytes`] 和用于处理缓冲区实现的 traits [`Buf`] 和 [`BufMut`].
 //!
 //! # `Bytes`
 //!
-//! `Bytes` is an efficient container for storing and operating on contiguous
-//! slices of memory. It is intended for use primarily in networking code, but
-//! could have applications elsewhere as well.
+//! `Bytes` 是一个高效的容器, 用于存储和操作连续内存片段(例如`slice`)。它主要用于网络编程，但也可能有其他用途。
 //!
-//! `Bytes` values facilitate zero-copy network programming by allowing multiple
-//! `Bytes` objects to point to the same underlying memory. This is managed by
-//! using a reference count to track when the memory is no longer needed and can
-//! be freed.
+//! `Bytes` 值可以实现零拷贝网络编程，因为它允许多个 `Bytes` 对象指向同一块共享内存。
+//!  这由引用计数跟踪并管理, 当该块内存不再需要时释放。
 //!
-//! A `Bytes` handle can be created directly from an existing byte store (such as `&[u8]`
-//! or `Vec<u8>`), but usually a `BytesMut` is used first and written to. For
-//! example:
+//! 一个 `Bytes` 的handle可以直接从一个字节存储(例如 `&[u8]` 或 `Vec<u8>`)创建,
+//! 但通常先创建一个 `BytesMut` 并写入数据。例如：
 //!
 //! ```rust
 //! use bytes::{BytesMut, BufMut};
@@ -45,32 +38,26 @@
 //!
 //! assert_eq!(buf.capacity(), 998);
 //! ```
-//!
-//! In the above example, only a single buffer of 1024 is allocated. The handles
-//! `a` and `b` will share the underlying buffer and maintain indices tracking
-//! the view into the buffer represented by the handle.
+//! 在上面的例子中, 只有一个 1024 字节的缓冲区被分配。`a` 和 `b` 两个handle共享同一块内存，并维护了对该内存的视图。
 //!
 //! See the [struct docs](`Bytes`) for more details.
 //!
 //! # `Buf`, `BufMut`
 //!
-//! These two traits provide read and write access to buffers. The underlying
-//! storage may or may not be in contiguous memory. For example, `Bytes` is a
-//! buffer that guarantees contiguous memory, but a [rope] stores the bytes in
-//! disjoint chunks. `Buf` and `BufMut` maintain cursors tracking the current
-//! position in the underlying byte storage. When bytes are read or written, the
-//! cursor is advanced.
+//! 这两个trait提供了对buffer的读写访问。底层存储可能是连续的，也可能不是。
+//! 例如，`Bytes` 是一个保证连续内存的buffer,但是一个[rope]存储字节的实现可能是分散的。
+//! `Buf` 和 `BufMut` 维护了一个游标，用于跟踪当前位置在底层字节存储中的位置。
+//! 当字节被读取或写入时，游标会被移动。
 //!
 //! [rope]: https://en.wikipedia.org/wiki/Rope_(data_structure)
 //!
 //! ## Relation with `Read` and `Write`
 //!
-//! At first glance, it may seem that `Buf` and `BufMut` overlap in
-//! functionality with [`std::io::Read`] and [`std::io::Write`]. However, they
-//! serve different purposes. A buffer is the value that is provided as an
-//! argument to `Read::read` and `Write::write`. `Read` and `Write` may then
-//! perform a syscall, which has the potential of failing. Operations on `Buf`
-//! and `BufMut` are infallible.
+//! 乍看之下, `Buf` 和 `BufMut` 看起来很像 [`std::io::Read`] 和 [`std::io::Write`].
+//! 但是, 它们有一些重要的区别:
+//! 一个buffer是提供给`Read::read`和`Write::write`的参数的值.
+//! `std::io::Read` 和 `std::io::Write` 可能会发起系统调用,并且可能会失败。
+//! 而 `Buf` 和 `BufMut` 不会。
 
 extern crate alloc;
 
