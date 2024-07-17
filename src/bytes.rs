@@ -880,12 +880,10 @@ impl From<Box<[u8]>> for Bytes {
 }
 
 impl From<Bytes> for BytesMut {
-    /// Convert self into `BytesMut`.
+    /// 将自身(不可变)转换成 `BytesMut`(可变)
     ///
-    /// If `bytes` is unique for the entire original buffer, this will return a
-    /// `BytesMut` with the contents of `bytes` without copying.
-    /// If `bytes` is not unique for the entire original buffer, this will make
-    /// a copy of `bytes` subset of the original buffer in a new `BytesMut`.
+    /// 如果`bytes`是整个原始缓冲区的唯一引用, 则该操作将成功转换成 `BytesMut`并且无复制操作.
+    /// 如果`bytes`不是整个原始缓冲区的唯一引用, 则会基于原始的缓冲区进行复制操作以生成新的`BytesMut`.
     ///
     /// # Examples
     ///
@@ -1027,10 +1025,10 @@ unsafe fn promotable_to_mut(
     if kind == KIND_ARC {
         shared_to_mut_impl(shared.cast(), ptr, len)
     } else {
-        // KIND_VEC is a view of an underlying buffer at a certain offset.
-        // The ptr + len always represents the end of that buffer.
-        // Before truncating it, it is first promoted to KIND_ARC.
-        // Thus, we can safely reconstruct a Vec from it without leaking memory.
+        // `KIND_VEC` 是一个底层buffer的视图, 其偏移量是固定的.
+        // `ptr + len` 总是代表该buffer的终点.
+        // 在截断之前, 它首先被提升为 `KIND_ARC`.
+        // 因此, 我们能够安全地重构一个`Vec`并且不会泄漏内存.
         debug_assert_eq!(kind, KIND_VEC);
 
         let buf = f(shared);

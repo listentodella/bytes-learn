@@ -91,11 +91,8 @@ macro_rules! buf_get_impl {
 /// assert_eq!(&rest[..], &b"lo world"[..]);
 /// ```
 pub trait Buf {
-    /// Returns the number of bytes between the current position and the end of
-    /// the buffer.
-    ///
-    /// This value is greater than or equal to the length of the slice returned
-    /// by `chunk()`.
+    /// 返回当前位置到缓冲区末尾的字节数。
+    /// 该值大于或等于`chunk()`方法返回的切片的长度。
     ///
     /// # Examples
     ///
@@ -113,17 +110,13 @@ pub trait Buf {
     ///
     /// # Implementer notes
     ///
-    /// Implementations of `remaining` should ensure that the return value does
-    /// not change unless a call is made to `advance` or any other function that
-    /// is documented to change the `Buf`'s current position.
+    /// `remaining`的实现应该确保返回值在调用`advance`或任何其他函数更改`Buf`当前位置前不会改变
     fn remaining(&self) -> usize;
 
-    /// Returns a slice starting at the current position and of length between 0
-    /// and `Buf::remaining()`. Note that this *can* return shorter slice (this allows
-    /// non-continuous internal representation).
+    /// 返回一个切片,该切面从当前位置开始,长度介于0和`Buf::remaining()`之间。
+    /// 注意,这*可能*返回一个较短的切片(这允许非连续的内部表示)。
     ///
-    /// This is a lower level function. Most operations are done with other
-    /// functions.
+    /// 这是一个底层的函数. 大多数的操作都用其他函数完成.
     ///
     /// # Examples
     ///
@@ -141,11 +134,9 @@ pub trait Buf {
     ///
     /// # Implementer notes
     ///
-    /// This function should never panic. `chunk()` should return an empty
-    /// slice **if and only if** `remaining()` returns 0. In other words,
-    /// `chunk()` returning an empty slice implies that `remaining()` will
-    /// return 0 and `remaining()` returning 0 implies that `chunk()` will
-    /// return an empty slice.
+    /// 该方法不允许panic.
+    /// `chunk()`应该返回一个空的切片,当且仅当`remaining()`返回0时.
+    /// 换句话说,`chunk()`返回空切片意味着`remaining()`返回0, 反之亦然
     // The `chunk` method was previously called `bytes`. This alias makes the rename
     // more easily discoverable.
     #[cfg_attr(docsrs, doc(alias = "bytes"))]
