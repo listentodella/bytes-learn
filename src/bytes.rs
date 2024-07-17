@@ -479,12 +479,10 @@ impl Bytes {
         self.truncate(0);
     }
 
-    /// Try to convert self into `BytesMut`.
+    /// 尝试将一个`Bytes` 转换成 `BytesMut`.
     ///
-    /// If `self` is unique for the entire original buffer, this will succeed
-    /// and return a `BytesMut` with the contents of `self` without copying.
-    /// If `self` is not unique for the entire original buffer, this will fail
-    /// and return self.
+    /// 如果`self`是底层buffer的唯一引用, 该操作将成功转换成 `BytesMut`并且无复制操作.
+    /// 如果不是, 则转换失败, 原封不动返回.
     ///
     /// # Examples
     ///
@@ -533,7 +531,7 @@ impl Bytes {
     }
 }
 
-// Vtable must enforce this behavior
+// 允许 `Bytes`进行`Send`和`Sync`, 这要求其内部的`Vtable`也必须如此
 unsafe impl Send for Bytes {}
 unsafe impl Sync for Bytes {}
 
@@ -824,7 +822,7 @@ impl From<Vec<u8>> for Bytes {
         let len = vec.len();
         let cap = vec.capacity();
 
-        // Avoid an extra allocation if possible.
+        // 可能的话,可以避免一次额外的分配
         if len == cap {
             let vec = ManuallyDrop::into_inner(vec);
             return Bytes::from(vec.into_boxed_slice());
@@ -837,8 +835,7 @@ impl From<Vec<u8>> for Bytes {
         });
 
         let shared = Box::into_raw(shared);
-        // The pointer should be aligned, so this assert should
-        // always succeed.
+        // 该指针应该是对齐的,因此正常来说,该操作总是成功的
         debug_assert!(
             0 == (shared as usize & KIND_MASK),
             "internal: Box<Shared> should have an aligned pointer",
@@ -854,9 +851,8 @@ impl From<Vec<u8>> for Bytes {
 
 impl From<Box<[u8]>> for Bytes {
     fn from(slice: Box<[u8]>) -> Bytes {
-        // Box<[u8]> doesn't contain a heap allocation for empty slices,
-        // so the pointer isn't aligned enough for the KIND_VEC stashing to
-        // work.
+        // `Box<[u8]>` 对于空的切片而言,并不包含堆分配
+        // 因此只是指针对齐不足以让 KIND_VEC 存储起作用
         if slice.is_empty() {
             return Bytes::new();
         }
